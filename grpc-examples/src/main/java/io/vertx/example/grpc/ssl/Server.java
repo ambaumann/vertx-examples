@@ -1,5 +1,6 @@
 package io.vertx.example.grpc.ssl;
 
+import com.google.protobuf.Timestamp;
 import io.grpc.examples.helloworld.GreeterGrpc;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
@@ -25,8 +26,14 @@ public class Server extends AbstractVerticle {
       .addService(new GreeterGrpc.GreeterVertxImplBase() {
       @Override
       public void sayHello(HelloRequest request, Future<HelloReply> future) {
+
+        Timestamp receivedTime = getCurrentTimestamp();
         System.out.println("Hello " + request.getName());
-        future.complete(HelloReply.newBuilder().setMessage(request.getName()).build());
+        future.complete(HelloReply.newBuilder().setMessage(request.getName())
+          .setId(request.getId())
+          .setStartTime(request.getStartTime())
+          .setServerReceivedTime(receivedTime)
+          .build());
       }
     })
       .useSsl(options -> options
@@ -43,5 +50,11 @@ public class Server extends AbstractVerticle {
         System.out.println("Could not start server " + ar.cause().getMessage());
       }
     });
+  }
+
+  private static Timestamp getCurrentTimestamp() {
+    long millis = System.currentTimeMillis();
+    return Timestamp.newBuilder().setSeconds(millis / 1000)
+      .setNanos((int) ((millis % 1000) * 1000000)).build();
   }
 }
