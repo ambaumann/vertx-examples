@@ -7,6 +7,9 @@ import io.vertx.example.util.Runner;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
+import io.vertx.ext.web.codec.BodyCodec;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 /*
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -31,14 +34,29 @@ public class Client extends AbstractVerticle {
         )
     );
 
-    client.get(8443, "localhost", "/")
-      .send(ar -> {
-        if (ar.succeeded()) {
-          HttpResponse<Buffer> response = ar.result();
-          System.out.println("Got HTTP response with status " + response.statusCode());
-        } else {
-          ar.cause().printStackTrace();
-        }
-      });
+    AtomicReference<Integer> counter = new AtomicReference<>(0);
+    vertx.setPeriodic(1000, id -> {
+      long millisStartTime = System.currentTimeMillis();
+
+      TimeData timeData = new TimeData();
+      timeData.id = counter.getAndSet(counter.get() + 1);
+      timeData.milliStart = millisStartTime;
+
+      client.put(8443, "localhost", "/")
+        .as(BodyCodec.json(TimeData.class))
+        .sendJson(timeData, ar -> {
+          if (ar.succeeded()) {
+            long finalTime = System.currentTimeMillis();
+            HttpResponse<TimeData> response = ar.result();
+            TimeData timedataResponse = response.body();
+            long oneWay = timedataResponse.milliServerRecieved - timedataResponse.milliStart;
+            long roundTrip = finalTime - timedataResponse.milliStart;
+            System.out.println(timedataResponse.id + " Succeeded" +
+              ": to there " + oneWay + "m : round trip :" + roundTrip + "m." );
+          } else {
+            ar.cause().printStackTrace();
+          }
+        });
+    });
   }
 }

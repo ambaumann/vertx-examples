@@ -2,6 +2,7 @@ package io.vertx.example.webclient.https;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.JksOptions;
 import io.vertx.example.util.Runner;
 
@@ -25,7 +26,12 @@ public class Server extends AbstractVerticle {
       .setSsl(true)
     ).requestHandler(req -> {
 
-      req.response().end();
+      req.bodyHandler(buff -> {
+        TimeData timeData = buff.toJsonObject().mapTo(TimeData.class);
+        timeData.milliServerRecieved = System.currentTimeMillis();
+        System.out.println("Receiving:" + buff.toJsonObject().encodePrettily() + " from client ");
+        req.response().end(JsonObject.mapFrom(timeData).encode());
+      });
 
     }).listen(8443, listenResult -> {
       if (listenResult.failed()) {
